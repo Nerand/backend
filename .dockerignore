@@ -1,0 +1,10 @@
+.venv
+.git
+.env
+*.sqlite3
+__pycache__
+.ruff_cache
+presentation
+postman
+tools
+dist

@@ -1,0 +1,1199 @@
+{
+  "info": {
+    "name": "Workshop Booking System",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000/api/v1"
+    },
+    {
+      "key": "user_password",
+      "value": "Demo-Participant-394!"
+    },
+    {
+      "key": "admin_username",
+      "value": "admin"
+    },
+    {
+      "key": "admin_password",
+      "value": ""
+    },
+    {
+      "key": "user_token",
+      "value": ""
+    },
+    {
+      "key": "admin_token",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "01 Регистрация участника",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/auth/register/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"{{run_user}}\", \"password\": \"{{user_password}}\", \"role\": \"admin\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const run = Date.now() + \"_\" + Math.floor(Math.random() * 100000);",
+              "pm.collectionVariables.set(\"run_user\", \"member_\" + run);",
+              "pm.collectionVariables.set(\"other_user\", \"other_\" + run);",
+              "pm.collectionVariables.set(\"future\", new Date(Date.now() + 864000000).toISOString());",
+              "pm.collectionVariables.set(\"past\", new Date(Date.now() - 86400000).toISOString());"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "pm.test(\"Пароль скрыт\", () => pm.expect(pm.response.json()).not.to.have.property(\"password\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Вход участника",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/auth/login/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"{{run_user}}\", \"password\": \"{{user_password}}\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"user_token\", pm.response.json().token);",
+              "pm.test(\"Роль user\", () => pm.expect(pm.response.json().user.role).to.eql(\"user\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Профиль",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Token {{user_token}}"
+          }
+        ],
+        "url": "{{base_url}}/auth/me/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Вход администратора",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/auth/login/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"{{admin_username}}\", \"password\": \"{{admin_password}}\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"admin_token\", pm.response.json().token);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Создать мастер-класс",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Token {{admin_token}}"
+          }
+        ],
+        "url": "{{base_url}}/workshops/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\": \"Python: практика\", \"description\": \"Демонстрационный мастер-класс\", \"location\": \"Онлайн\", \"starts_at\": \"{{future}}\", \"capacity\": 1}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set(\"workshop_id\", pm.response.json().id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Публичный список",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/workshops/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Пагинация\", () => pm.expect(pm.response.json().results).to.be.an(\"array\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 Публичные детали",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/workshops/{{workshop_id}}/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 PUT мастер-класса",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Token {{admin_token}}"
+          }
+        ],
+        "url": "{{base_url}}/workshops/{{workshop_id}}/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\": \"Python: практика\", \"description\": \"Демонстрационный мастер-класс\", \"location\": \"Онлайн\", \"starts_at\": \"{{future}}\", \"capacity\": 1}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 PATCH мастер-класса",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Token {{admin_token}}"
+          }
+        ],
+        "url": "{{base_url}}/workshops/{{workshop_id}}/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\": \"Обновлённый Python\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 Пользователь не администратор",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Token {{user_token}}"
+          }
+        ],
+        "url": "{{base_url}}/workshops/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\": \"Python: практика\", \"description\": \"Демонстрационный мастер-класс\", \"location\": \"Онлайн\", \"starts_at\": \"{{future}}\", \"capacity\": 1}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10PUT Изменение занятия запрещено пользователю",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Token {{user_token}}"
+          }
+        ],
+        "url": "{{base_url}}/workshops/{{workshop_id}}/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\": \"Python: практика\", \"description\": \"Демонстрационный мастер-класс\", \"location\": \"Онлайн\", \"starts_at\": \"{{future}}\", \"capacity\": 1}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10PATCH Изменение занятия запрещено пользователю",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Token {{user_token}}"
+          }
+        ],
+        "url": "{{base_url}}/workshops/{{workshop_id}}/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\": \"Python: практика\", \"description\": \"Демонстрационный мастер-класс\", \"location\": \"Онлайн\", \"starts_at\": \"{{future}}\", \"capacity\": 1}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10DELETE Изменение занятия запрещено пользователю",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Token {{user_token}}"
+          }
+        ],
+        "url": "{{base_url}}/workshops/{{workshop_id}}/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 Бронь без токена",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/bookings/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"workshop_id\": \"{{workshop_id}}\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 Запись участника",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Token {{user_token}}"
+          }
+        ],
+        "url": "{{base_url}}/bookings/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"workshop_id\": \"{{workshop_id}}\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set(\"booking_id\", pm.response.json().id);",
+              "pm.test(\"Вложенный мастер-класс\", () => pm.expect(pm.response.json().workshop.id).to.eql(Number(pm.collectionVariables.get(\"workshop_id\"))));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 Повторная запись",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Token {{user_token}}"
+          }
+        ],
+        "url": "{{base_url}}/bookings/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"workshop_id\": \"{{workshop_id}}\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "14 Мои бронирования",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Token {{user_token}}"
+          }
+        ],
+        "url": "{{base_url}}/bookings/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "15 Детали моей брони",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Token {{user_token}}"
+          }
+        ],
+        "url": "{{base_url}}/bookings/{{booking_id}}/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "15a Создать занятие для переноса",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Token {{admin_token}}"
+          }
+        ],
+        "url": "{{base_url}}/workshops/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\": \"Занятие для переноса\", \"description\": \"Демонстрационный мастер-класс\", \"location\": \"Онлайн\", \"starts_at\": \"{{future}}\", \"capacity\": 1}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set(\"move_workshop_id\", pm.response.json().id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "15b PUT перенос брони",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Token {{user_token}}"
+          }
+        ],
+        "url": "{{base_url}}/bookings/{{booking_id}}/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"workshop_id\": \"{{move_workshop_id}}\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Сохранён ID брони\", () => pm.expect(pm.response.json().id).to.eql(Number(pm.collectionVariables.get(\"booking_id\"))));",
+              "pm.test(\"Бронь перенесена\", () => pm.expect(pm.response.json().workshop.id).to.eql(Number(pm.collectionVariables.get(\"move_workshop_id\"))));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "15c Старое место свободно",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/workshops/{{workshop_id}}/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Место освобождено переносом\", () => pm.expect(pm.response.json().available_seats).to.eql(1));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "15d PATCH возврат брони",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Token {{user_token}}"
+          }
+        ],
+        "url": "{{base_url}}/bookings/{{booking_id}}/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"workshop_id\": \"{{workshop_id}}\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Возврат на исходное занятие\", () => pm.expect(pm.response.json().workshop.id).to.eql(Number(pm.collectionVariables.get(\"workshop_id\"))));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "15e Удалить занятие для переноса",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Token {{admin_token}}"
+          }
+        ],
+        "url": "{{base_url}}/workshops/{{move_workshop_id}}/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "16 Второй пользователь",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/auth/register/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"{{other_user}}\", \"password\": \"{{user_password}}\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "17 Вход второго пользователя",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/auth/login/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"{{other_user}}\", \"password\": \"{{user_password}}\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"other_token\", pm.response.json().token);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "18 Чужие брони скрыты",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Token {{other_token}}"
+          }
+        ],
+        "url": "{{base_url}}/bookings/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Нет чужих броней\", () => pm.expect(pm.response.json().count).to.eql(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "19 Чужая бронь недоступна",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Token {{other_token}}"
+          }
+        ],
+        "url": "{{base_url}}/bookings/{{booking_id}}/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "20 Нельзя отменить чужую бронь",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Token {{other_token}}"
+          }
+        ],
+        "url": "{{base_url}}/bookings/{{booking_id}}/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "20PUT Нельзя перенести чужую бронь",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Token {{other_token}}"
+          }
+        ],
+        "url": "{{base_url}}/bookings/{{booking_id}}/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"workshop_id\": \"{{workshop_id}}\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "20PATCH Нельзя перенести чужую бронь",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Token {{other_token}}"
+          }
+        ],
+        "url": "{{base_url}}/bookings/{{booking_id}}/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"workshop_id\": \"{{workshop_id}}\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "21 Нет свободных мест",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Token {{other_token}}"
+          }
+        ],
+        "url": "{{base_url}}/bookings/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"workshop_id\": \"{{workshop_id}}\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "22 Прошедшая дата",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Token {{admin_token}}"
+          }
+        ],
+        "url": "{{base_url}}/workshops/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\": \"Python: практика\", \"description\": \"Демонстрационный мастер-класс\", \"location\": \"Онлайн\", \"starts_at\": \"{{past}}\", \"capacity\": 1}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "23 Отмена своей брони",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Token {{user_token}}"
+          }
+        ],
+        "url": "{{base_url}}/bookings/{{booking_id}}/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "24 Место освободилось",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/workshops/{{workshop_id}}/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Свободно одно место\", () => pm.expect(pm.response.json().available_seats).to.eql(1));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "25 Второй участник занимает место",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Token {{other_token}}"
+          }
+        ],
+        "url": "{{base_url}}/bookings/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"workshop_id\": \"{{workshop_id}}\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set(\"second_booking_id\", pm.response.json().id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "26 Отмена второй брони",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Token {{other_token}}"
+          }
+        ],
+        "url": "{{base_url}}/bookings/{{second_booking_id}}/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "27 Удаление мастер-класса",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Token {{admin_token}}"
+          }
+        ],
+        "url": "{{base_url}}/workshops/{{workshop_id}}/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "28 Удалённый мастер-класс",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/workshops/{{workshop_id}}/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "29 Выход участника",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Token {{user_token}}"
+          }
+        ],
+        "url": "{{base_url}}/auth/logout/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "30 Токен отозван",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Token {{user_token}}"
+          }
+        ],
+        "url": "{{base_url}}/auth/me/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "31 Выход второго участника",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Token {{other_token}}"
+          }
+        ],
+        "url": "{{base_url}}/auth/logout/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "32 Выход администратора",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Token {{admin_token}}"
+          }
+        ],
+        "url": "{{base_url}}/auth/logout/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

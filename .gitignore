@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.sqlite3
+.env
+.ruff_cache/
+dist/
+*.pptx
+presentation/*
+!presentation/workshop-booking-reviewed.pdf
+!presentation/video/
+presentation/video/*
+!presentation/video/workshop-booking-voiceover-fixed.mp4
